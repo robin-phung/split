@@ -11,9 +11,13 @@ module Split
         alternative = if Split.configuration.enabled && !exclude_visitor?
           experiment.save
           raise(Split::InvalidExperimentsFormatError) unless (Split.configuration.experiments || {}).fetch(experiment.name.to_sym, {})[:combined_experiments].nil?
-          trial = Trial.new(:user => ab_user, :experiment => experiment,
-              :override => override_alternative(experiment.name), :exclude => exclude_visitor?,
-              :disabled => split_generically_disabled?)
+          trial = Trial.new(
+            :user => ab_user, 
+            :experiment => experiment,
+            :override => override_alternative(experiment.name), 
+            :exclude => !is_qualified?,
+            :disabled => split_generically_disabled?
+          )
           alt = trial.choose!(self)
           alt ? alt.name : nil
         else
@@ -160,6 +164,12 @@ module Split
 
     def control_variable(control)
       Hash === control ? control.keys.first.to_s : control.to_s
+    end
+
+    private 
+    
+    def is_qualified?
+      self.respond_to?(:ab_test_user_qualified?, true) ? self.send(:ab_test_user_qualified?) : true
     end
   end
 end
